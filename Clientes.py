@@ -1,13 +1,24 @@
 import tkinter as tk
-from tkinter import messagebox
+from tkinter import messagebox, ttk
+import mysql.connector
+
+# Conexión a la base de datos
+try:
+    conn = mysql.connector.connect(
+        host="localhost",
+        user="root",
+        password="07032005Ma",
+        database="extra"
+    )
+    cursor = conn.cursor()
+except mysql.connector.Error as err:
+    messagebox.showerror("Error", f"Error al conectar a la base de datos: {err}")
+    exit()
 
 # Crear ventana
 ventana = tk.Tk()
 ventana.title("Clientes")
 ventana.geometry("640x480")
-
-# Datos temporales
-datos_clientes = []
 
 # Funciones CRUD
 def guardar_cliente():
@@ -15,45 +26,62 @@ def guardar_cliente():
     nombre = txtNombre.get()
     telefono = txtTelefono.get()
     if id_cliente and nombre and telefono:
-        cliente = (id_cliente, nombre, telefono)
-        datos_clientes.append(cliente)
-        messagebox.showinfo("Éxito", "Cliente guardado correctamente.")
-        limpiar_campos()
-        mostrar_clientes()
+        try:
+            cursor.execute("INSERT INTO Clientes (id_cliente, nombre, telefono) VALUES (%s, %s, %s)",
+                           (id_cliente, nombre, telefono))
+            conn.commit()
+            messagebox.showinfo("Éxito", "Cliente guardado correctamente.")
+            limpiar_campos()
+            mostrar_clientes()
+        except mysql.connector.Error as err:
+            messagebox.showerror("Error", f"Error al guardar cliente: {err}")
     else:
         messagebox.showwarning("Advertencia", "Todos los campos son obligatorios.")
 
 def eliminar_cliente():
-    seleccionado = lista_clientes.curselection()
+    seleccionado = tree.selection()
     if seleccionado:
-        indice = seleccionado[0]
-        datos_clientes.pop(indice)
-        messagebox.showinfo("Éxito", "Cliente eliminado correctamente.")
-        mostrar_clientes()
+        id_cliente = tree.item(seleccionado[0], "values")[0]
+        try:
+            cursor.execute("DELETE FROM Clientes WHERE id_cliente = %s", (id_cliente,))
+            conn.commit()
+            messagebox.showinfo("Éxito", "Cliente eliminado correctamente.")
+            mostrar_clientes()
+        except mysql.connector.Error as err:
+            messagebox.showerror("Error", f"Error al eliminar cliente: {err}")
     else:
         messagebox.showwarning("Advertencia", "Seleccione un cliente para eliminar.")
 
 def actualizar_cliente():
-    seleccionado = lista_clientes.curselection()
+    seleccionado = tree.selection()
     if seleccionado:
-        indice = seleccionado[0]
-        id_cliente = txtId.get()
+        id_cliente = tree.item(seleccionado[0], "values")[0]
         nombre = txtNombre.get()
         telefono = txtTelefono.get()
-        if id_cliente and nombre and telefono:
-            datos_clientes[indice] = (id_cliente, nombre, telefono)
-            messagebox.showinfo("Éxito", "Cliente actualizado correctamente.")
-            limpiar_campos()
-            mostrar_clientes()
+        if nombre and telefono:
+            try:
+                cursor.execute("UPDATE Clientes SET nombre = %s, telefono = %s WHERE id_cliente = %s",
+                               (nombre, telefono, id_cliente))
+                conn.commit()
+                messagebox.showinfo("Éxito", "Cliente actualizado correctamente.")
+                limpiar_campos()
+                mostrar_clientes()
+            except mysql.connector.Error as err:
+                messagebox.showerror("Error", f"Error al actualizar cliente: {err}")
         else:
             messagebox.showwarning("Advertencia", "Todos los campos son obligatorios.")
     else:
         messagebox.showwarning("Advertencia", "Seleccione un cliente para actualizar.")
 
 def mostrar_clientes():
-    lista_clientes.delete(0, tk.END)
-    for cliente in datos_clientes:
-        lista_clientes.insert(tk.END, cliente)
+    try:
+        cursor.execute("SELECT * FROM Clientes")
+        rows = cursor.fetchall()
+        tree.delete(*tree.get_children())
+        for row in rows:
+            tree.insert("", "end", values=row)
+    except mysql.connector.Error as err:
+        messagebox.showerror("Error", f"Error al cargar clientes: {err}")
 
 def limpiar_campos():
     txtId.delete(0, tk.END)
@@ -94,7 +122,14 @@ btnLimpiar.place(x=410, y=170, width=100, height=30)
 btnMostrar = tk.Button(ventana, text="Mostrar Datos", command=mostrar_clientes)
 btnMostrar.place(x=540, y=170, width=100, height=30)
 
-lista_clientes = tk.Listbox(ventana)
-lista_clientes.place(x=20, y=220, width=600, height=240)
+# Configuración del Treeview
+tree = ttk.Treeview(ventana, columns=("id_cliente", "nombre", "telefono"), show="headings")
+tree.heading("id_cliente", text="ID_CLIENTE")
+tree.heading("nombre", text="NOMBRE")
+tree.heading("telefono", text="TELÉFONO")
+tree.column("id_cliente", width=100)
+tree.column("nombre", width=200)
+tree.column("telefono", width=200)
+tree.place(x=20, y=220, width=600, height=240)
 
 ventana.mainloop()
