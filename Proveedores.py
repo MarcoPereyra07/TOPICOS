@@ -1,63 +1,93 @@
 import tkinter as tk
 from tkinter import messagebox, ttk
+import mysql.connector
+
+# Conexión a la base de datos
+try:
+    conn = mysql.connector.connect(
+        host="localhost",
+        user="root",
+        password="07032005Ma",
+        database="extra"
+    )
+    cursor = conn.cursor()
+except mysql.connector.Error as err:
+    messagebox.showerror("Error", f"Error al conectar a la base de datos: {err}")
+    exit()
 
 # Crear ventana
 ventana = tk.Tk()
 ventana.title("Proveedores")
 ventana.geometry("640x480")
 
-# Datos temporales
-datos_proveedores = []
-
-# Funciones CRUD
+# Funciones CRUD corregidas
 def guardar_proveedor():
     id_proveedor = txtId.get()
     nombre = txtNombre.get()
     telefono = txtTelefono.get()
     if id_proveedor and nombre and telefono:
-        proveedor = (id_proveedor, nombre, telefono)
-        datos_proveedores.append(proveedor)
-        messagebox.showinfo("Éxito", "Proveedor guardado correctamente.")
-        limpiar_campos()
-        mostrar_proveedores()
+        try:
+            # Cambiado "Proveedores" por "proveedor" o el nombre real de tu tabla
+            cursor.execute("INSERT INTO proveedor (id_proveedor, nombre, telefono) VALUES (%s, %s, %s)",
+                         (id_proveedor, nombre, telefono))
+            conn.commit()
+            messagebox.showinfo("Éxito", "Proveedor guardado correctamente.")
+            limpiar_campos()
+            mostrar_proveedores()
+        except mysql.connector.Error as err:
+            messagebox.showerror("Error", f"Error al guardar proveedor: {err}")
     else:
         messagebox.showwarning("Advertencia", "Todos los campos son obligatorios.")
+
 
 def eliminar_proveedor():
     seleccionado = tree.selection()
     if seleccionado:
-        indice = tree.index(seleccionado[0])
-        datos_proveedores.pop(indice)
-        messagebox.showinfo("Éxito", "Proveedor eliminado correctamente.")
-        mostrar_proveedores()
+        id_proveedor = tree.item(seleccionado[0], "values")[0]
+        try:
+            # Cambiado "Proveedores" por "proveedor"
+            cursor.execute("DELETE FROM proveedor WHERE id_proveedor = %s", (id_proveedor,))
+            conn.commit()
+            messagebox.showinfo("Éxito", "Proveedor eliminado correctamente.")
+            mostrar_proveedores()
+        except mysql.connector.Error as err:
+            messagebox.showerror("Error", f"Error al eliminar proveedor: {err}")
     else:
         messagebox.showwarning("Advertencia", "Seleccione un proveedor para eliminar.")
+
 
 def actualizar_proveedor():
     seleccionado = tree.selection()
     if seleccionado:
-        indice = tree.index(seleccionado[0])
-        id_proveedor = txtId.get()
+        id_proveedor = tree.item(seleccionado[0], "values")[0]
         nombre = txtNombre.get()
         telefono = txtTelefono.get()
-        if id_proveedor and nombre and telefono:
-            datos_proveedores[indice] = (id_proveedor, nombre, telefono)
-            messagebox.showinfo("Éxito", "Proveedor actualizado correctamente.")
-            limpiar_campos()
-            mostrar_proveedores()
+        if nombre and telefono:
+            try:
+                # Cambiado "Proveedores" por "proveedor"
+                cursor.execute("UPDATE proveedor SET nombre = %s, telefono = %s WHERE id_proveedor = %s",
+                             (nombre, telefono, id_proveedor))
+                conn.commit()
+                messagebox.showinfo("Éxito", "Proveedor actualizado correctamente.")
+                limpiar_campos()
+                mostrar_proveedores()
+            except mysql.connector.Error as err:
+                messagebox.showerror("Error", f"Error al actualizar proveedor: {err}")
         else:
             messagebox.showwarning("Advertencia", "Todos los campos son obligatorios.")
     else:
         messagebox.showwarning("Advertencia", "Seleccione un proveedor para actualizar.")
 
 def mostrar_proveedores():
-    # Limpiar el Treeview antes de mostrar nuevos datos
-    for item in tree.get_children():
-        tree.delete(item)
-    
-    # Insertar datos en el Treeview
-    for proveedor in datos_proveedores:
-        tree.insert("", "end", values=proveedor)
+    try:
+        # Cambiado "Proveedores" por "proveedor"
+        cursor.execute("SELECT * FROM proveedor")
+        rows = cursor.fetchall()
+        tree.delete(*tree.get_children())
+        for row in rows:
+            tree.insert("", "end", values=row)
+    except mysql.connector.Error as err:
+        messagebox.showerror("Error", f"Error al cargar proveedores: {err}")
 
 def limpiar_campos():
     txtId.delete(0, tk.END)
