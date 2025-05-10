@@ -1,61 +1,83 @@
 import tkinter as tk
 from tkinter import messagebox, ttk
+import mysql.connector
+
+# Conexión a la base de datos
+try:
+    conn = mysql.connector.connect(
+        host="localhost",
+        user="root",
+        password="07032005Ma",
+        database="extra"
+    )
+    cursor = conn.cursor()
+except mysql.connector.Error as err:
+    messagebox.showerror("Error", f"Error al conectar a la base de datos: {err}")
+    exit()
 
 # Crear ventana
 ventana = tk.Tk()
 ventana.title("Cajas")
 ventana.geometry("640x480")
 
-# Datos temporales
-datos_cajas = []
-
 # Funciones CRUD
 def guardar_caja():
     id_caja = txtId.get()
     nombre = txtNombre.get()
     if id_caja and nombre:
-        caja = (id_caja, nombre)
-        datos_cajas.append(caja)
-        messagebox.showinfo("Éxito", "Caja guardada correctamente.")
-        limpiar_campos()
-        mostrar_cajas()
+        try:
+            cursor.execute("INSERT INTO Cajas (id_caja, nombre) VALUES (%s, %s)", (id_caja, nombre))
+            conn.commit()
+            messagebox.showinfo("Éxito", "Caja guardada correctamente.")
+            limpiar_campos()
+            mostrar_cajas()
+        except mysql.connector.Error as err:
+            messagebox.showerror("Error", f"Error al guardar caja: {err}")
     else:
         messagebox.showwarning("Advertencia", "Todos los campos son obligatorios.")
 
 def eliminar_caja():
     seleccionado = tree.selection()
     if seleccionado:
-        indice = tree.index(seleccionado[0])
-        datos_cajas.pop(indice)
-        messagebox.showinfo("Éxito", "Caja eliminada correctamente.")
-        mostrar_cajas()
+        id_caja = tree.item(seleccionado[0], "values")[0]
+        try:
+            cursor.execute("DELETE FROM Cajas WHERE id_caja = %s", (id_caja,))
+            conn.commit()
+            messagebox.showinfo("Éxito", "Caja eliminada correctamente.")
+            mostrar_cajas()
+        except mysql.connector.Error as err:
+            messagebox.showerror("Error", f"Error al eliminar caja: {err}")
     else:
         messagebox.showwarning("Advertencia", "Seleccione una caja para eliminar.")
 
 def actualizar_caja():
     seleccionado = tree.selection()
     if seleccionado:
-        indice = tree.index(seleccionado[0])
-        id_caja = txtId.get()
+        id_caja = tree.item(seleccionado[0], "values")[0]
         nombre = txtNombre.get()
-        if id_caja and nombre:
-            datos_cajas[indice] = (id_caja, nombre)
-            messagebox.showinfo("Éxito", "Caja actualizada correctamente.")
-            limpiar_campos()
-            mostrar_cajas()
+        if nombre:
+            try:
+                cursor.execute("UPDATE Cajas SET nombre = %s WHERE id_caja = %s", (nombre, id_caja))
+                conn.commit()
+                messagebox.showinfo("Éxito", "Caja actualizada correctamente.")
+                limpiar_campos()
+                mostrar_cajas()
+            except mysql.connector.Error as err:
+                messagebox.showerror("Error", f"Error al actualizar caja: {err}")
         else:
             messagebox.showwarning("Advertencia", "Todos los campos son obligatorios.")
     else:
         messagebox.showwarning("Advertencia", "Seleccione una caja para actualizar.")
 
 def mostrar_cajas():
-    # Limpiar el Treeview antes de mostrar nuevos datos
-    for item in tree.get_children():
-        tree.delete(item)
-    
-    # Insertar datos en el Treeview
-    for caja in datos_cajas:
-        tree.insert("", "end", values=caja)
+    try:
+        cursor.execute("SELECT * FROM Cajas")
+        rows = cursor.fetchall()
+        tree.delete(*tree.get_children())
+        for row in rows:
+            tree.insert("", "end", values=row)
+    except mysql.connector.Error as err:
+        messagebox.showerror("Error", f"Error al cargar cajas: {err}")
 
 def limpiar_campos():
     txtId.delete(0, tk.END)
