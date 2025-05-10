@@ -1,13 +1,24 @@
 import tkinter as tk
 from tkinter import messagebox, ttk
+import mysql.connector
+
+# Conexión a la base de datos
+try:
+    conn = mysql.connector.connect(
+        host="localhost",
+        user="root",
+        password="07032005Ma",
+        database="extra"
+    )
+    cursor = conn.cursor()
+except mysql.connector.Error as err:
+    messagebox.showerror("Error", f"Error al conectar a la base de datos: {err}")
+    exit()
 
 # Crear ventana
 ventana = tk.Tk()
 ventana.title("Categorías")
 ventana.geometry("640x480")
-
-# Datos temporales
-datos_categorias = []
 
 # Funciones CRUD
 def guardar_categoria():
@@ -15,49 +26,62 @@ def guardar_categoria():
     nombre = txtNombre.get()
     descripcion = txtDescripcion.get()
     if id_categoria and nombre and descripcion:
-        categoria = (id_categoria, nombre, descripcion)
-        datos_categorias.append(categoria)
-        messagebox.showinfo("Éxito", "Categoría guardada correctamente.")
-        limpiar_campos()
-        mostrar_categorias()
+        try:
+            cursor.execute("INSERT INTO Categorias (id_categoria, nombre, descripcion) VALUES (%s, %s, %s)",
+                           (id_categoria, nombre, descripcion))
+            conn.commit()
+            messagebox.showinfo("Éxito", "Categoría guardada correctamente.")
+            limpiar_campos()
+            mostrar_categorias()
+        except mysql.connector.Error as err:
+            messagebox.showerror("Error", f"Error al guardar categoría: {err}")
     else:
         messagebox.showwarning("Advertencia", "Todos los campos son obligatorios.")
 
 def eliminar_categoria():
     seleccionado = tree.selection()
     if seleccionado:
-        indice = tree.index(seleccionado[0])
-        datos_categorias.pop(indice)
-        messagebox.showinfo("Éxito", "Categoría eliminada correctamente.")
-        mostrar_categorias()
+        id_categoria = tree.item(seleccionado[0], "values")[0]
+        try:
+            cursor.execute("DELETE FROM Categorias WHERE id_categoria = %s", (id_categoria,))
+            conn.commit()
+            messagebox.showinfo("Éxito", "Categoría eliminada correctamente.")
+            mostrar_categorias()
+        except mysql.connector.Error as err:
+            messagebox.showerror("Error", f"Error al eliminar categoría: {err}")
     else:
         messagebox.showwarning("Advertencia", "Seleccione una categoría para eliminar.")
 
 def actualizar_categoria():
     seleccionado = tree.selection()
     if seleccionado:
-        indice = tree.index(seleccionado[0])
-        id_categoria = txtId.get()
+        id_categoria = tree.item(seleccionado[0], "values")[0]
         nombre = txtNombre.get()
         descripcion = txtDescripcion.get()
-        if id_categoria and nombre and descripcion:
-            datos_categorias[indice] = (id_categoria, nombre, descripcion)
-            messagebox.showinfo("Éxito", "Categoría actualizada correctamente.")
-            limpiar_campos()
-            mostrar_categorias()
+        if nombre and descripcion:
+            try:
+                cursor.execute("UPDATE Categorias SET nombre = %s, descripcion = %s WHERE id_categoria = %s",
+                               (nombre, descripcion, id_categoria))
+                conn.commit()
+                messagebox.showinfo("Éxito", "Categoría actualizada correctamente.")
+                limpiar_campos()
+                mostrar_categorias()
+            except mysql.connector.Error as err:
+                messagebox.showerror("Error", f"Error al actualizar categoría: {err}")
         else:
             messagebox.showwarning("Advertencia", "Todos los campos son obligatorios.")
     else:
         messagebox.showwarning("Advertencia", "Seleccione una categoría para actualizar.")
 
 def mostrar_categorias():
-    # Limpiar el Treeview antes de mostrar nuevos datos
-    for item in tree.get_children():
-        tree.delete(item)
-    
-    # Insertar datos en el Treeview
-    for categoria in datos_categorias:
-        tree.insert("", "end", values=categoria)
+    try:
+        cursor.execute("SELECT * FROM Categorias")
+        rows = cursor.fetchall()
+        tree.delete(*tree.get_children())
+        for row in rows:
+            tree.insert("", "end", values=row)
+    except mysql.connector.Error as err:
+        messagebox.showerror("Error", f"Error al cargar categorías: {err}")
 
 def limpiar_campos():
     txtId.delete(0, tk.END)
